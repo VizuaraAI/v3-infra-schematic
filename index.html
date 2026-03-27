@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>V3 Infrastructure &mdash; Paper2Notebook Production Pipeline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a; --fg: #f2f2f2; --card: #121212; --card-hover: #1a1a1a;
+      --border: #262626; --muted: #6b6b76; --primary: #00d46a; --secondary: #00c8e6;
+      --purple: #a78bfa; --amber: #fbbf24; --red: #f87171;
+      --glow-green: rgba(0,212,106,0.15); --glow-cyan: rgba(0,200,230,0.12);
+      --font-serif: 'Instrument Serif', Georgia, serif;
+      --font-sans: 'Inter', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans); background: var(--bg); color: var(--fg);
+      line-height: 1.7; overflow-x: hidden;
+    }
+    a { color: var(--primary); text-decoration: none; }
+
+    /* ── Background Grid ─────────────────────────────── */
+    .grid-bg {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    /* ── Container ───────────────────────────────────── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+    /* ── Navbar ───────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(10,10,10,0.8); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border);
+    }
+    nav .container { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+    .nav-brand { font-family: var(--font-serif); font-style: italic; font-size: 1.5rem; }
+    .nav-brand span { background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-links { display: flex; gap: 28px; }
+    .nav-links a { color: var(--muted); font-size: 0.875rem; font-weight: 500; transition: color 0.3s; }
+    .nav-links a:hover { color: var(--fg); }
+
+    /* ── Section Heading ─────────────────────────────── */
+    .section { padding: 96px 0; }
+    .section-label {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--primary); background: rgba(0,212,106,0.1);
+      border: 1px solid rgba(0,212,106,0.2); border-radius: 999px; padding: 6px 16px; margin-bottom: 20px;
+    }
+    .section-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .section-title {
+      font-family: var(--font-serif); font-style: italic; font-weight: 400;
+      font-size: clamp(2.2rem, 5vw, 3.5rem); line-height: 1.15; margin-bottom: 16px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .section-subtitle { color: var(--muted); font-size: 1.1rem; max-width: 640px; }
+    .section.centered { text-align: center; }
+    .section.centered .section-subtitle { margin: 0 auto; }
+
+    /* ── Hero ─────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh; display: flex; align-items: center; position: relative; overflow: hidden;
+    }
+    .hero-glow-1 {
+      position: absolute; top: -100px; left: -100px; width: 500px; height: 500px;
+      background: var(--glow-green); border-radius: 50%; filter: blur(120px); pointer-events: none;
+    }
+    .hero-glow-2 {
+      position: absolute; bottom: -100px; right: -100px; width: 400px; height: 400px;
+      background: var(--glow-cyan); border-radius: 50%; filter: blur(120px); pointer-events: none;
+    }
+    .hero-content { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+    .hero-text h1 {
+      font-family: var(--font-serif); font-style: italic; font-weight: 400;
+      font-size: clamp(2.5rem, 6vw, 4rem); line-height: 1.1; margin-bottom: 24px;
+    }
+    .hero-text h1 span { background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero-text p { color: var(--muted); font-size: 1.15rem; margin-bottom: 32px; max-width: 500px; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px; margin-bottom: 24px;
+      background: rgba(0,212,106,0.08); border: 1px solid rgba(0,212,106,0.2);
+      border-radius: 999px; padding: 8px 20px; font-size: 0.85rem; color: var(--primary); font-weight: 500;
+    }
+    .hero-badge .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); animation: pulse 2s infinite; }
+
+    /* ── Hero Diagram (SVG) ──────────────────────────── */
+    .hero-diagram { position: relative; display: flex; justify-content: center; align-items: center; }
+    .orbit-container { width: 420px; height: 420px; position: relative; }
+    .orbit-ring {
+      position: absolute; border-radius: 50%; border: 1px solid; animation: spin linear infinite;
+    }
+    .orbit-ring.outer { inset: 0; border-color: rgba(167,139,250,0.25); animation-duration: 30s; }
+    .orbit-ring.middle { inset: 60px; border-color: rgba(0,200,230,0.25); animation-duration: 22s; animation-direction: reverse; }
+    .orbit-ring.inner { inset: 120px; border-color: rgba(0,212,106,0.25); animation-duration: 16s; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .orbit-node {
+      position: absolute; width: 10px; height: 10px; border-radius: 50%; animation: nodePulse 3s infinite;
+    }
+    @keyframes nodePulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } }
+    .orbit-center {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(circle, rgba(0,212,106,0.2), transparent 70%);
+      border: 1px solid rgba(0,212,106,0.3);
+    }
+    .orbit-center span {
+      font-family: var(--font-mono); font-weight: 500; font-size: 0.85rem;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .orbit-label {
+      position: absolute; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.05em;
+      padding: 4px 12px; border-radius: 999px; border: 1px solid; white-space: nowrap;
+    }
+    .orbit-label.docker { top: -14px; left: 50%; transform: translateX(-50%); color: var(--secondary); border-color: rgba(0,200,230,0.3); background: rgba(0,200,230,0.08); }
+    .orbit-label.terraform { bottom: 50px; right: -30px; color: var(--purple); border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.08); }
+    .orbit-label.aws { bottom: -14px; left: 50%; transform: translateX(-50%); color: var(--amber); border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.08); }
+    .orbit-label.cicd { bottom: 50px; left: -20px; color: var(--primary); border-color: rgba(0,212,106,0.3); background: rgba(0,212,106,0.08); }
+
+    /* ── Cards ────────────────────────────────────────── */
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 32px; transition: all 0.3s ease;
+    }
+    .card:hover { border-color: rgba(0,212,106,0.3); transform: translateY(-4px); box-shadow: 0 0 40px var(--glow-green); }
+    .card-icon {
+      width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; margin-bottom: 20px; border: 1px solid;
+    }
+    .card h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 12px; }
+    .card p { color: var(--muted); font-size: 0.95rem; }
+
+    /* Card icon variants */
+    .card-icon.docker { background: rgba(0,200,230,0.1); border-color: rgba(0,200,230,0.2); }
+    .card-icon.terraform { background: rgba(167,139,250,0.1); border-color: rgba(167,139,250,0.2); }
+    .card-icon.aws { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.2); }
+    .card-icon.cicd { background: rgba(0,212,106,0.1); border-color: rgba(0,212,106,0.2); }
+
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; margin-top: 48px; }
+
+    /* ── Pipeline Diagram ────────────────────────────── */
+    .pipeline-flow {
+      display: flex; flex-direction: column; gap: 0; margin-top: 48px;
+      position: relative;
+    }
+    .pipeline-stage {
+      display: grid; grid-template-columns: 160px 1fr; gap: 32px; align-items: start;
+      position: relative; padding-bottom: 48px;
+    }
+    .pipeline-stage:last-child { padding-bottom: 0; }
+    .stage-marker {
+      display: flex; flex-direction: column; align-items: center; position: relative;
+    }
+    .stage-number {
+      width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono); font-weight: 700; font-size: 1rem;
+      border: 2px solid; position: relative; z-index: 2; background: var(--bg);
+    }
+    .stage-number.green { color: var(--primary); border-color: var(--primary); box-shadow: 0 0 20px rgba(0,212,106,0.3); }
+    .stage-number.cyan { color: var(--secondary); border-color: var(--secondary); box-shadow: 0 0 20px rgba(0,200,230,0.3); }
+    .stage-number.purple { color: var(--purple); border-color: var(--purple); box-shadow: 0 0 20px rgba(167,139,250,0.3); }
+    .stage-number.amber { color: var(--amber); border-color: var(--amber); box-shadow: 0 0 20px rgba(251,191,36,0.3); }
+    .stage-line {
+      width: 2px; flex: 1; min-height: 40px;
+      background: linear-gradient(to bottom, var(--border), transparent);
+      margin-top: 8px;
+    }
+    .stage-label {
+      font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted); margin-top: 12px; text-align: center;
+    }
+    .stage-content { padding-top: 4px; }
+    .stage-content h3 { font-size: 1.3rem; font-weight: 600; margin-bottom: 8px; }
+    .stage-content .desc { color: var(--muted); font-size: 0.95rem; margin-bottom: 16px; }
+
+    /* ── Code Blocks ─────────────────────────────────── */
+    .code-block {
+      background: #0d0d0d; border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px 24px; font-family: var(--font-mono); font-size: 0.82rem;
+      line-height: 1.8; overflow-x: auto; color: var(--muted); margin-top: 16px;
+    }
+    .code-block .comment { color: #4a4a58; }
+    .code-block .keyword { color: var(--purple); }
+    .code-block .string { color: var(--primary); }
+    .code-block .flag { color: var(--secondary); }
+    .code-block .cmd { color: var(--fg); }
+
+    /* ── Big Schematic (ASCII-art style box diagram) ── */
+    .schematic-wrapper {
+      margin-top: 48px; padding: 40px; background: #0d0d0d;
+      border: 1px solid var(--border); border-radius: 20px; overflow-x: auto;
+      position: relative;
+    }
+    .schematic-wrapper::before {
+      content: ''; position: absolute; inset: -1px; border-radius: 20px;
+      background: linear-gradient(135deg, rgba(0,212,106,0.15), rgba(0,200,230,0.1), rgba(167,139,250,0.1));
+      z-index: -1; filter: blur(40px);
+    }
+
+    /* SVG Schematic Styles */
+    .schematic-svg { width: 100%; height: auto; display: block; }
+    .schematic-svg text { font-family: var(--font-sans); }
+    .schematic-svg .mono { font-family: var(--font-mono); }
+
+    /* ── Explainer Boxes ─────────────────────────────── */
+    .explainer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 48px; }
+    .explainer-box {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px;
+      position: relative; overflow: hidden;
+    }
+    .explainer-box::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    }
+    .explainer-box.docker::before { background: linear-gradient(90deg, var(--secondary), transparent); }
+    .explainer-box.terraform::before { background: linear-gradient(90deg, var(--purple), transparent); }
+    .explainer-box.ecs::before { background: linear-gradient(90deg, var(--amber), transparent); }
+    .explainer-box.cicd::before { background: linear-gradient(90deg, var(--primary), transparent); }
+    .explainer-box h4 { font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+    .explainer-box .tag {
+      font-size: 0.65rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+      padding: 3px 10px; border-radius: 999px; border: 1px solid;
+    }
+    .tag.docker { color: var(--secondary); border-color: rgba(0,200,230,0.3); }
+    .tag.terraform { color: var(--purple); border-color: rgba(167,139,250,0.3); }
+    .tag.aws { color: var(--amber); border-color: rgba(251,191,36,0.3); }
+    .tag.cicd { color: var(--primary); border-color: rgba(0,212,106,0.3); }
+    .explainer-box p { color: var(--muted); font-size: 0.9rem; margin-bottom: 12px; }
+    .explainer-box ul { list-style: none; padding: 0; }
+    .explainer-box ul li {
+      color: var(--muted); font-size: 0.85rem; padding: 4px 0; padding-left: 20px; position: relative;
+    }
+    .explainer-box ul li::before { content: ''; position: absolute; left: 0; top: 12px; width: 6px; height: 6px; border-radius: 50%; }
+    .explainer-box.docker ul li::before { background: var(--secondary); }
+    .explainer-box.terraform ul li::before { background: var(--purple); }
+    .explainer-box.ecs ul li::before { background: var(--amber); }
+    .explainer-box.cicd ul li::before { background: var(--primary); }
+
+    /* ── Analogy Cards ───────────────────────────────── */
+    .analogy-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px;
+      text-align: center; transition: all 0.3s;
+    }
+    .analogy-card:hover { border-color: rgba(0,212,106,0.3); transform: translateY(-2px); }
+    .analogy-emoji { font-size: 2.5rem; margin-bottom: 16px; }
+    .analogy-card h4 { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
+    .analogy-card .versus { color: var(--primary); font-family: var(--font-mono); font-size: 0.75rem; margin-bottom: 8px; }
+    .analogy-card p { color: var(--muted); font-size: 0.85rem; }
+
+    /* ── AWS Resource Table ───────────────────────────── */
+    .resource-table {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+      margin-top: 32px; border-radius: 12px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .resource-table th {
+      background: rgba(251,191,36,0.08); color: var(--amber);
+      font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 14px 20px; text-align: left; border-bottom: 1px solid var(--border);
+    }
+    .resource-table td {
+      padding: 14px 20px; font-size: 0.9rem; border-bottom: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .resource-table tr:last-child td { border-bottom: none; }
+    .resource-table td:first-child { color: var(--fg); font-weight: 500; font-family: var(--font-mono); font-size: 0.85rem; }
+    .resource-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── Footer ──────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border); padding: 48px 0; text-align: center;
+    }
+    footer p { color: var(--muted); font-size: 0.85rem; }
+    footer .brand { font-family: var(--font-serif); font-style: italic; font-size: 1.2rem; margin-bottom: 8px; }
+    footer .brand span { background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+    /* ── Fade-in Animations ───────────────────────────── */
+    .fade-up { opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+    .delay-1 { transition-delay: 0.1s; }
+    .delay-2 { transition-delay: 0.2s; }
+    .delay-3 { transition-delay: 0.3s; }
+    .delay-4 { transition-delay: 0.4s; }
+
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 768px) {
+      .hero-content { grid-template-columns: 1fr; text-align: center; }
+      .hero-text p { margin: 0 auto 32px; }
+      .hero-diagram { display: none; }
+      .explainer-grid { grid-template-columns: 1fr; }
+      .pipeline-stage { grid-template-columns: 80px 1fr; gap: 20px; }
+      .nav-links { display: none; }
+      .schematic-wrapper { padding: 20px; }
+    }
+
+    /* ── How It Flows section ─────────────────────────── */
+    .flow-step {
+      display: flex; align-items: flex-start; gap: 20px; padding: 20px 0;
+    }
+    .flow-num {
+      flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700;
+      background: rgba(0,212,106,0.1); color: var(--primary); border: 1px solid rgba(0,212,106,0.3);
+    }
+    .flow-step p { color: var(--muted); font-size: 0.95rem; }
+    .flow-step strong { color: var(--fg); }
+
+    /* ── Wide card ────────────────────────────────────── */
+    .wide-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 40px; margin-top: 48px; position: relative; overflow: hidden;
+    }
+    .wide-card::before {
+      content: ''; position: absolute; top: -50%; right: -20%; width: 400px; height: 400px;
+      background: var(--glow-green); border-radius: 50%; filter: blur(120px); pointer-events: none; opacity: 0.4;
+    }
+    .wide-card h3 { font-size: 1.3rem; font-weight: 600; margin-bottom: 24px; position: relative; }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <!-- ═══ Navbar ═══ -->
+  <nav>
+    <div class="container">
+      <div class="nav-brand"><span>Paper2Notebook</span></div>
+      <div class="nav-links">
+        <a href="#concepts">Concepts</a>
+        <a href="#schematic">Schematic</a>
+        <a href="#pipeline">Pipeline</a>
+        <a href="#aws">AWS Resources</a>
+        <a href="#how-it-flows">How It Works</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══ Hero ═══ -->
+  <section class="hero">
+    <div class="hero-glow-1"></div>
+    <div class="hero-glow-2"></div>
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-text">
+          <div class="hero-badge">
+            <span class="pulse-dot"></span>
+            Sprint V3 &mdash; Production-Ready
+          </div>
+          <h1>From Code to Cloud,<br/><span>Fully Automated</span></h1>
+          <p>
+            How Docker, Terraform, GitHub Actions, and AWS ECS Fargate work together
+            to ship Paper2Notebook to production &mdash; with zero manual steps after <code style="background:rgba(0,212,106,0.1);padding:2px 8px;border-radius:6px;font-family:var(--font-mono);font-size:0.9rem;color:var(--primary);">git push</code>.
+          </p>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <a href="#concepts" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:var(--primary);color:#0a0a0a;border-radius:12px;font-weight:600;font-size:0.9rem;transition:all 0.3s;box-shadow:0 0 30px rgba(0,212,106,0.3);">Explore Concepts</a>
+            <a href="#schematic" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border:1px solid var(--border);border-radius:12px;font-weight:500;font-size:0.9rem;color:var(--fg);transition:all 0.3s;">View Schematic &darr;</a>
+          </div>
+        </div>
+
+        <!-- Orbital Viz -->
+        <div class="hero-diagram">
+          <div class="orbit-container">
+            <div class="orbit-ring outer">
+              <div class="orbit-node" style="top:-5px;left:50%;background:var(--purple);"></div>
+              <div class="orbit-node" style="bottom:30%;right:-5px;background:var(--purple);animation-delay:1s;"></div>
+            </div>
+            <div class="orbit-ring middle">
+              <div class="orbit-node" style="top:10%;left:-5px;background:var(--secondary);"></div>
+              <div class="orbit-node" style="bottom:-5px;left:40%;background:var(--secondary);animation-delay:0.5s;"></div>
+            </div>
+            <div class="orbit-ring inner">
+              <div class="orbit-node" style="top:-5px;left:50%;background:var(--primary);"></div>
+              <div class="orbit-node" style="bottom:20%;right:-5px;background:var(--primary);animation-delay:1.5s;"></div>
+            </div>
+            <div class="orbit-center"><span>V3</span></div>
+            <span class="orbit-label docker">Docker</span>
+            <span class="orbit-label terraform">Terraform</span>
+            <span class="orbit-label aws">AWS ECS</span>
+            <span class="orbit-label cicd">CI/CD</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Key Concepts ═══ -->
+  <section class="section centered" id="concepts">
+    <div class="container">
+      <span class="section-label"><span class="dot"></span> Core Technologies</span>
+      <h2 class="section-title">What Powers the Pipeline</h2>
+      <p class="section-subtitle">Four technologies work together to take your code from a laptop to a globally available service &mdash; automatically.</p>
+
+      <div class="cards-grid fade-up">
+        <div class="card">
+          <div class="card-icon docker">&#x1F4E6;</div>
+          <h3>Docker</h3>
+          <p>Packages your app + all its dependencies into a single <strong style="color:var(--secondary)">container image</strong>. Think of it as a shipping container for software &mdash; runs identically on your laptop, in CI, and in the cloud.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon terraform">&#x1F3D7;&#xFE0F;</div>
+          <h3>Terraform</h3>
+          <p>Describes your entire cloud infrastructure <strong style="color:var(--purple)">as code</strong>. Instead of clicking through AWS console, you write <code style="color:var(--purple)">.tf</code> files and run <code style="color:var(--purple)">terraform apply</code> &mdash; Terraform creates everything for you.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon aws">&#x2601;&#xFE0F;</div>
+          <h3>AWS ECS Fargate</h3>
+          <p>Runs your Docker containers <strong style="color:var(--amber)">without managing servers</strong>. You say "run this container with 512MB RAM" and AWS handles the rest &mdash; no EC2 instances, no patching, no SSH.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon cicd">&#x1F504;</div>
+          <h3>GitHub Actions CI/CD</h3>
+          <p>Automates your <strong style="color:var(--primary)">test &rarr; build &rarr; deploy</strong> pipeline. Every push triggers tests; every merge to main triggers deployment. Humans write code, machines do the rest.</p>
+        </div>
+      </div>
+
+      <!-- Analogies -->
+      <div style="margin-top:64px;">
+        <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:24px;color:var(--muted);">Real-World Analogies</h3>
+        <div class="cards-grid">
+          <div class="analogy-card fade-up delay-1">
+            <div class="analogy-emoji">&#x1F4E6; &#x27A1; &#x1F6A2;</div>
+            <h4>Docker = Shipping Container</h4>
+            <div class="versus">app + deps &rarr; one portable box</div>
+            <p>Just like shipping containers standardized global trade, Docker standardized software delivery. Same box runs everywhere.</p>
+          </div>
+          <div class="analogy-card fade-up delay-2">
+            <div class="analogy-emoji">&#x1F4D0; &#x27A1; &#x1F3D7;&#xFE0F;</div>
+            <h4>Terraform = Architect's Blueprint</h4>
+            <div class="versus">code &rarr; infrastructure</div>
+            <p>Write the blueprint once, build identical infrastructure anywhere. Change the blueprint, Terraform rebuilds only what changed.</p>
+          </div>
+          <div class="analogy-card fade-up delay-3">
+            <div class="analogy-emoji">&#x1F3ED; &#x27A1; &#x2601;&#xFE0F;</div>
+            <h4>Fargate = Serverless Factory</h4>
+            <div class="versus">containers &rarr; no servers to manage</div>
+            <p>You bring the container, AWS brings the machine. Like renting a fully-staffed kitchen &mdash; just bring your recipe.</p>
+          </div>
+          <div class="analogy-card fade-up delay-4">
+            <div class="analogy-emoji">&#x1F916; &#x27A1; &#x1F680;</div>
+            <h4>CI/CD = Assembly Line Robot</h4>
+            <div class="versus">push code &rarr; auto test &amp; deploy</div>
+            <p>Every code push triggers automated quality checks. Pass all checks? Robot ships it to production. Fail? It blocks the merge.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ The Big Schematic ═══ -->
+  <section class="section" id="schematic" style="background: rgba(255,255,255,0.01);">
+    <div class="container">
+      <span class="section-label"><span class="dot"></span> Architecture Overview</span>
+      <h2 class="section-title">The Complete Picture</h2>
+      <p class="section-subtitle">From <code style="color:var(--primary);font-family:var(--font-mono);">git push</code> to live users &mdash; every step, every service, every connection.</p>
+
+      <div class="schematic-wrapper fade-up">
+        <svg class="schematic-svg" viewBox="0 0 1100 820" xmlns="http://www.w3.org/2000/svg">
+          <!-- Background regions -->
+          <!-- Developer Machine -->
+          <rect x="20" y="20" width="240" height="200" rx="16" fill="#121212" stroke="#262626" stroke-width="1"/>
+          <text x="140" y="52" text-anchor="middle" fill="#f2f2f2" font-size="13" font-weight="600">Your Machine</text>
+          <text x="140" y="72" text-anchor="middle" fill="#6b6b76" font-size="10">where you write code</text>
+          <!-- Code files -->
+          <rect x="42" y="90" width="88" height="34" rx="8" fill="rgba(0,212,106,0.08)" stroke="rgba(0,212,106,0.25)" stroke-width="1"/>
+          <text x="86" y="112" text-anchor="middle" fill="#00d46a" font-size="10" class="mono">FastAPI</text>
+          <rect x="148" y="90" width="88" height="34" rx="8" fill="rgba(0,200,230,0.08)" stroke="rgba(0,200,230,0.25)" stroke-width="1"/>
+          <text x="192" y="112" text-anchor="middle" fill="#00c8e6" font-size="10" class="mono">React</text>
+          <!-- Dockerfiles -->
+          <rect x="42" y="140" width="196" height="34" rx="8" fill="rgba(167,139,250,0.06)" stroke="rgba(167,139,250,0.2)" stroke-width="1"/>
+          <text x="140" y="161" text-anchor="middle" fill="#a78bfa" font-size="10" class="mono">Dockerfile (backend + frontend)</text>
+          <!-- Terraform -->
+          <rect x="42" y="182" width="196" height="28" rx="8" fill="rgba(167,139,250,0.06)" stroke="rgba(167,139,250,0.2)" stroke-width="1"/>
+          <text x="140" y="200" text-anchor="middle" fill="#a78bfa" font-size="10" class="mono">main.tf  &middot;  variables.tf</text>
+
+          <!-- Arrow: Dev -> GitHub -->
+          <defs>
+            <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#00d46a"/>
+            </marker>
+            <marker id="arrow-cyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#00c8e6"/>
+            </marker>
+            <marker id="arrow-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#a78bfa"/>
+            </marker>
+            <marker id="arrow-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#fbbf24"/>
+            </marker>
+            <marker id="arrow-white" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#6b6b76"/>
+            </marker>
+          </defs>
+
+          <line x1="260" y1="120" x2="340" y2="120" stroke="#00d46a" stroke-width="2" marker-end="url(#arrow-green)" stroke-dasharray="6,4" opacity="0.7"/>
+          <text x="300" y="112" text-anchor="middle" fill="#00d46a" font-size="9" class="mono">git push</text>
+
+          <!-- GitHub Box -->
+          <rect x="350" y="20" width="380" height="420" rx="16" fill="#0d0d0d" stroke="#262626" stroke-width="1"/>
+          <text x="540" y="52" text-anchor="middle" fill="#f2f2f2" font-size="14" font-weight="600">GitHub</text>
+
+          <!-- GitHub Actions CI Box -->
+          <rect x="374" y="72" width="332" height="350" rx="12" fill="#121212" stroke="rgba(0,212,106,0.2)" stroke-width="1"/>
+          <text x="540" y="96" text-anchor="middle" fill="#00d46a" font-size="12" font-weight="600">GitHub Actions CI/CD</text>
+          <text x="540" y="112" text-anchor="middle" fill="#6b6b76" font-size="9">triggered on every push / PR</text>
+
+          <!-- CI Steps -->
+          <rect x="398" y="126" width="145" height="36" rx="8" fill="rgba(0,212,106,0.06)" stroke="rgba(0,212,106,0.2)" stroke-width="1"/>
+          <text x="470" y="148" text-anchor="middle" fill="#00d46a" font-size="10" class="mono">pytest (backend)</text>
+
+          <rect x="556" y="126" width="145" height="36" rx="8" fill="rgba(0,200,230,0.06)" stroke="rgba(0,200,230,0.2)" stroke-width="1"/>
+          <text x="628" y="148" text-anchor="middle" fill="#00c8e6" font-size="10" class="mono">playwright (E2E)</text>
+
+          <rect x="398" y="174" width="145" height="36" rx="8" fill="rgba(248,113,113,0.06)" stroke="rgba(248,113,113,0.2)" stroke-width="1"/>
+          <text x="470" y="196" text-anchor="middle" fill="#f87171" font-size="10" class="mono">semgrep (security)</text>
+
+          <rect x="556" y="174" width="145" height="36" rx="8" fill="rgba(248,113,113,0.06)" stroke="rgba(248,113,113,0.2)" stroke-width="1"/>
+          <text x="628" y="196" text-anchor="middle" fill="#f87171" font-size="10" class="mono">pip-audit (deps)</text>
+
+          <!-- All pass? -->
+          <rect x="440" y="228" width="200" height="32" rx="8" fill="rgba(0,212,106,0.1)" stroke="rgba(0,212,106,0.4)" stroke-width="1.5"/>
+          <text x="540" y="249" text-anchor="middle" fill="#00d46a" font-size="11" font-weight="600">All checks pass?</text>
+
+          <!-- Fail branch -->
+          <line x1="640" y1="244" x2="700" y2="244" stroke="#f87171" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <text x="700" y="240" fill="#f87171" font-size="9" font-weight="600">FAIL</text>
+          <rect x="680" y="252" width="20" height="20" rx="4" fill="rgba(248,113,113,0.15)" stroke="rgba(248,113,113,0.4)" stroke-width="1"/>
+          <text x="690" y="266" text-anchor="middle" fill="#f87171" font-size="12" font-weight="700">&times;</text>
+          <text x="690" y="286" text-anchor="middle" fill="#6b6b76" font-size="8">merge blocked</text>
+
+          <!-- Pass arrow down -->
+          <line x1="540" y1="260" x2="540" y2="290" stroke="#00d46a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+          <text x="554" y="280" fill="#00d46a" font-size="9" font-weight="600">PASS</text>
+
+          <!-- Docker Build -->
+          <rect x="420" y="294" width="240" height="56" rx="10" fill="rgba(0,200,230,0.06)" stroke="rgba(0,200,230,0.25)" stroke-width="1.5"/>
+          <text x="540" y="318" text-anchor="middle" fill="#00c8e6" font-size="11" font-weight="600">Docker Build &amp; Push</text>
+          <text x="540" y="336" text-anchor="middle" fill="#6b6b76" font-size="9" class="mono">docker build -t app . &amp;&amp; docker push</text>
+
+          <!-- Arrow to ECR -->
+          <line x1="540" y1="350" x2="540" y2="382" stroke="#00c8e6" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+
+          <!-- Terraform Apply -->
+          <rect x="420" y="386" width="240" height="28" rx="8" fill="rgba(167,139,250,0.06)" stroke="rgba(167,139,250,0.2)" stroke-width="1"/>
+          <text x="540" y="405" text-anchor="middle" fill="#a78bfa" font-size="10" class="mono">terraform apply (if infra changed)</text>
+
+          <!-- Arrow: GitHub -> AWS -->
+          <line x1="730" y1="320" x2="800" y2="320" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrow-amber)" stroke-dasharray="6,4" opacity="0.7"/>
+
+          <!-- AWS Cloud -->
+          <rect x="810" y="20" width="270" height="780" rx="16" fill="rgba(251,191,36,0.02)" stroke="rgba(251,191,36,0.2)" stroke-width="1.5"/>
+          <text x="945" y="50" text-anchor="middle" fill="#fbbf24" font-size="14" font-weight="700">AWS Cloud</text>
+
+          <!-- VPC -->
+          <rect x="830" y="68" width="230" height="700" rx="12" fill="rgba(251,191,36,0.02)" stroke="rgba(251,191,36,0.1)" stroke-width="1"/>
+          <text x="945" y="90" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="500">VPC (Private Network)</text>
+          <text x="945" y="104" text-anchor="middle" fill="#6b6b76" font-size="8">isolated network with public &amp; private subnets</text>
+
+          <!-- ECR -->
+          <rect x="856" y="120" width="178" height="60" rx="10" fill="rgba(0,200,230,0.06)" stroke="rgba(0,200,230,0.2)" stroke-width="1"/>
+          <text x="945" y="145" text-anchor="middle" fill="#00c8e6" font-size="11" font-weight="600">ECR</text>
+          <text x="945" y="162" text-anchor="middle" fill="#6b6b76" font-size="9">Container Image Registry</text>
+          <text x="945" y="174" text-anchor="middle" fill="#6b6b76" font-size="8">(like Docker Hub, but private)</text>
+
+          <!-- Arrow ECR -> ECS -->
+          <line x1="945" y1="180" x2="945" y2="210" stroke="#00c8e6" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+          <text x="958" y="200" fill="#6b6b76" font-size="8">pull image</text>
+
+          <!-- ECS Fargate Cluster -->
+          <rect x="856" y="216" width="178" height="200" rx="10" fill="rgba(251,191,36,0.04)" stroke="rgba(251,191,36,0.2)" stroke-width="1.5"/>
+          <text x="945" y="240" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="600">ECS Fargate Cluster</text>
+          <text x="945" y="254" text-anchor="middle" fill="#6b6b76" font-size="8">serverless container orchestrator</text>
+
+          <!-- Backend Task -->
+          <rect x="872" y="268" width="146" height="48" rx="8" fill="rgba(0,212,106,0.06)" stroke="rgba(0,212,106,0.2)" stroke-width="1"/>
+          <text x="945" y="288" text-anchor="middle" fill="#00d46a" font-size="10" font-weight="600">Backend Task</text>
+          <text x="945" y="304" text-anchor="middle" fill="#6b6b76" font-size="8" class="mono">FastAPI :8000</text>
+
+          <!-- Frontend Task -->
+          <rect x="872" y="326" width="146" height="48" rx="8" fill="rgba(0,200,230,0.06)" stroke="rgba(0,200,230,0.2)" stroke-width="1"/>
+          <text x="945" y="346" text-anchor="middle" fill="#00c8e6" font-size="10" font-weight="600">Frontend Task</text>
+          <text x="945" y="362" text-anchor="middle" fill="#6b6b76" font-size="8" class="mono">Nginx + React :80</text>
+
+          <!-- Fargate label -->
+          <rect x="880" y="388" width="130" height="20" rx="4" fill="rgba(251,191,36,0.08)" stroke="rgba(251,191,36,0.15)" stroke-width="1"/>
+          <text x="945" y="402" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="600">NO SERVERS TO MANAGE</text>
+
+          <!-- Arrow ECS -> ALB -->
+          <line x1="945" y1="416" x2="945" y2="450" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+
+          <!-- ALB -->
+          <rect x="856" y="456" width="178" height="64" rx="10" fill="rgba(0,212,106,0.04)" stroke="rgba(0,212,106,0.2)" stroke-width="1.5"/>
+          <text x="945" y="482" text-anchor="middle" fill="#00d46a" font-size="11" font-weight="600">ALB</text>
+          <text x="945" y="498" text-anchor="middle" fill="#6b6b76" font-size="9">Application Load Balancer</text>
+          <text x="945" y="512" text-anchor="middle" fill="#6b6b76" font-size="8">routes /api/* &rarr; backend, /* &rarr; frontend</text>
+
+          <!-- Arrow ALB -> Internet -->
+          <line x1="945" y1="520" x2="945" y2="560" stroke="#00d46a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+          <!-- Internet / Users -->
+          <rect x="876" y="566" width="138" height="46" rx="10" fill="rgba(0,212,106,0.08)" stroke="rgba(0,212,106,0.3)" stroke-width="1.5"/>
+          <text x="945" y="593" text-anchor="middle" fill="#00d46a" font-size="12" font-weight="600">Users</text>
+
+          <!-- CloudWatch -->
+          <rect x="856" y="636" width="178" height="52" rx="10" fill="rgba(167,139,250,0.04)" stroke="rgba(167,139,250,0.15)" stroke-width="1"/>
+          <text x="945" y="658" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">CloudWatch</text>
+          <text x="945" y="674" text-anchor="middle" fill="#6b6b76" font-size="9">Logs &amp; Monitoring</text>
+
+          <!-- Arrow ECS -> CloudWatch -->
+          <path d="M 1034 350 Q 1050 350 1050 500 Q 1050 650 1034 660" fill="none" stroke="rgba(167,139,250,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="1060" y="500" fill="#6b6b76" font-size="7" transform="rotate(90,1060,500)">logs stream</text>
+
+          <!-- IAM -->
+          <rect x="856" y="700" width="178" height="52" rx="10" fill="rgba(248,113,113,0.04)" stroke="rgba(248,113,113,0.15)" stroke-width="1"/>
+          <text x="945" y="722" text-anchor="middle" fill="#f87171" font-size="10" font-weight="600">IAM Roles</text>
+          <text x="945" y="738" text-anchor="middle" fill="#6b6b76" font-size="9">Permissions &amp; Security</text>
+
+          <!-- Terraform connection lines -->
+          <path d="M 350 400 L 350 500 Q 350 520 370 520 L 830 520" fill="none" stroke="rgba(167,139,250,0.3)" stroke-width="1.5" stroke-dasharray="6,4"/>
+          <text x="590" y="514" text-anchor="middle" fill="#a78bfa" font-size="9">Terraform provisions all AWS resources</text>
+
+          <!-- Legend -->
+          <rect x="20" y="270" width="240" height="170" rx="12" fill="#0d0d0d" stroke="#262626" stroke-width="1"/>
+          <text x="140" y="296" text-anchor="middle" fill="#f2f2f2" font-size="11" font-weight="600">Legend</text>
+          <circle cx="48" cy="320" r="5" fill="#00d46a"/>
+          <text x="62" y="324" fill="#6b6b76" font-size="10">Application Code / Tests</text>
+          <circle cx="48" cy="344" r="5" fill="#00c8e6"/>
+          <text x="62" y="348" fill="#6b6b76" font-size="10">Docker (containerization)</text>
+          <circle cx="48" cy="368" r="5" fill="#a78bfa"/>
+          <text x="62" y="372" fill="#6b6b76" font-size="10">Terraform (infrastructure)</text>
+          <circle cx="48" cy="392" r="5" fill="#fbbf24"/>
+          <text x="62" y="396" fill="#6b6b76" font-size="10">AWS Cloud Services</text>
+          <circle cx="48" cy="416" r="5" fill="#f87171"/>
+          <text x="62" y="420" fill="#6b6b76" font-size="10">Security / Blocking</text>
+
+          <!-- Flow summary at bottom left -->
+          <rect x="20" y="480" width="310" height="320" rx="12" fill="#121212" stroke="#262626" stroke-width="1"/>
+          <text x="175" y="510" text-anchor="middle" fill="#f2f2f2" font-size="12" font-weight="600">The Flow in One Glance</text>
+
+          <text x="44" y="540" fill="#00d46a" font-size="10" font-weight="600" class="mono">1.</text>
+          <text x="62" y="540" fill="#6b6b76" font-size="10">Developer pushes code to GitHub</text>
+
+          <text x="44" y="564" fill="#00d46a" font-size="10" font-weight="600" class="mono">2.</text>
+          <text x="62" y="564" fill="#6b6b76" font-size="10">GitHub Actions runs all tests</text>
+
+          <text x="44" y="588" fill="#f87171" font-size="10" font-weight="600" class="mono">2a.</text>
+          <text x="68" y="588" fill="#6b6b76" font-size="10">If tests fail &rarr; merge is blocked</text>
+
+          <text x="44" y="612" fill="#00c8e6" font-size="10" font-weight="600" class="mono">3.</text>
+          <text x="62" y="612" fill="#6b6b76" font-size="10">Docker builds container images</text>
+
+          <text x="44" y="636" fill="#00c8e6" font-size="10" font-weight="600" class="mono">4.</text>
+          <text x="62" y="636" fill="#6b6b76" font-size="10">Images pushed to AWS ECR</text>
+
+          <text x="44" y="660" fill="#a78bfa" font-size="10" font-weight="600" class="mono">5.</text>
+          <text x="62" y="660" fill="#6b6b76" font-size="10">Terraform ensures infra is ready</text>
+
+          <text x="44" y="684" fill="#fbbf24" font-size="10" font-weight="600" class="mono">6.</text>
+          <text x="62" y="684" fill="#6b6b76" font-size="10">ECS Fargate pulls &amp; runs containers</text>
+
+          <text x="44" y="708" fill="#fbbf24" font-size="10" font-weight="600" class="mono">7.</text>
+          <text x="62" y="708" fill="#6b6b76" font-size="10">ALB routes traffic to containers</text>
+
+          <text x="44" y="732" fill="#00d46a" font-size="10" font-weight="600" class="mono">8.</text>
+          <text x="62" y="732" fill="#6b6b76" font-size="10">Users access the live application!</text>
+
+          <text x="44" y="770" fill="#a78bfa" font-size="10" class="mono">&infin;</text>
+          <text x="62" y="770" fill="#6b6b76" font-size="10">CloudWatch monitors everything</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Deep Dive: Explainers ═══ -->
+  <section class="section" id="deepdive">
+    <div class="container">
+      <span class="section-label"><span class="dot"></span> Deep Dive</span>
+      <h2 class="section-title">Understanding Each Piece</h2>
+      <p class="section-subtitle">What each technology actually does behind the scenes, explained clearly.</p>
+
+      <div class="explainer-grid fade-up">
+        <!-- Docker -->
+        <div class="explainer-box docker">
+          <h4><span class="tag docker">Docker</span> What is a Container?</h4>
+          <p>A container is a lightweight, standalone package that includes your application code, runtime, libraries, and system tools. Unlike a virtual machine, containers share the host OS kernel, making them fast and efficient.</p>
+          <ul>
+            <li><strong style="color:var(--fg)">Dockerfile</strong> &mdash; recipe that describes how to build the image</li>
+            <li><strong style="color:var(--fg)">Image</strong> &mdash; the built artifact (like a compiled binary, but for your whole app)</li>
+            <li><strong style="color:var(--fg)">Container</strong> &mdash; a running instance of an image</li>
+            <li><strong style="color:var(--fg)">docker-compose</strong> &mdash; runs multiple containers together (frontend + backend)</li>
+          </ul>
+          <div class="code-block" style="margin-top:16px;">
+            <span class="comment"># Our backend Dockerfile</span><br/>
+            <span class="keyword">FROM</span> <span class="string">python:3.11-slim</span><br/>
+            <span class="keyword">WORKDIR</span> <span class="string">/app</span><br/>
+            <span class="keyword">COPY</span> requirements.txt .<br/>
+            <span class="keyword">RUN</span> <span class="cmd">pip install -r requirements.txt</span><br/>
+            <span class="keyword">COPY</span> . .<br/>
+            <span class="keyword">CMD</span> [<span class="string">"uvicorn"</span>, <span class="string">"main:app"</span>]
+          </div>
+        </div>
+
+        <!-- Terraform -->
+        <div class="explainer-box terraform">
+          <h4><span class="tag terraform">Terraform</span> Infrastructure as Code</h4>
+          <p>Instead of manually creating AWS resources via the console, Terraform lets you describe your infrastructure in <code style="color:var(--purple)">.tf</code> files. Run <code style="color:var(--purple)">terraform apply</code> and it creates, updates, or destroys resources to match your code.</p>
+          <ul>
+            <li><strong style="color:var(--fg)">Declarative</strong> &mdash; you describe the desired state, Terraform figures out the steps</li>
+            <li><strong style="color:var(--fg)">State file</strong> &mdash; tracks what currently exists so it only changes what's different</li>
+            <li><strong style="color:var(--fg)">Plan</strong> &mdash; preview changes before applying them (safe!)</li>
+            <li><strong style="color:var(--fg)">Idempotent</strong> &mdash; running <code style="color:var(--purple)">apply</code> twice with no changes = no effect</li>
+          </ul>
+          <div class="code-block" style="margin-top:16px;">
+            <span class="comment"># Create an ECS cluster in Terraform</span><br/>
+            <span class="keyword">resource</span> <span class="string">"aws_ecs_cluster"</span> <span class="string">"main"</span> {<br/>
+            &nbsp;&nbsp;name = <span class="string">"paper2notebook"</span><br/>
+            }<br/><br/>
+            <span class="keyword">resource</span> <span class="string">"aws_ecs_service"</span> <span class="string">"backend"</span> {<br/>
+            &nbsp;&nbsp;cluster &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= aws_ecs_cluster.main.id<br/>
+            &nbsp;&nbsp;launch_type &nbsp;&nbsp;&nbsp;= <span class="string">"FARGATE"</span><br/>
+            &nbsp;&nbsp;desired_count &nbsp;= <span class="flag">2</span><br/>
+            }
+          </div>
+        </div>
+
+        <!-- ECS Fargate -->
+        <div class="explainer-box ecs">
+          <h4><span class="tag aws">AWS ECS Fargate</span> Serverless Containers</h4>
+          <p>ECS (Elastic Container Service) is AWS's container orchestrator. Fargate is the serverless mode &mdash; you don't provision or manage any EC2 instances. Just define CPU/memory per container and AWS handles the rest.</p>
+          <ul>
+            <li><strong style="color:var(--fg)">Task Definition</strong> &mdash; blueprint for a container (image, CPU, memory, ports, env vars)</li>
+            <li><strong style="color:var(--fg)">Service</strong> &mdash; keeps N copies of a task running, replaces crashed ones</li>
+            <li><strong style="color:var(--fg)">Cluster</strong> &mdash; logical grouping of services &amp; tasks</li>
+            <li><strong style="color:var(--fg)">Fargate vs EC2</strong> &mdash; Fargate = no servers; EC2 = you manage instances</li>
+          </ul>
+          <div class="code-block" style="margin-top:16px;">
+            <span class="comment"># What happens under the hood</span><br/>
+            <span class="cmd">You:</span> <span class="string">"Run my-image with 512MB RAM"</span><br/>
+            <span class="cmd">AWS:</span> <span class="flag">Allocates compute</span><br/>
+            <span class="cmd">AWS:</span> <span class="flag">Pulls image from ECR</span><br/>
+            <span class="cmd">AWS:</span> <span class="flag">Starts container in your VPC</span><br/>
+            <span class="cmd">AWS:</span> <span class="flag">Connects to load balancer</span><br/>
+            <span class="cmd">AWS:</span> <span class="flag">Streams logs to CloudWatch</span><br/>
+            <span class="cmd">You:</span> <span class="string">Do nothing. It just works.</span>
+          </div>
+        </div>
+
+        <!-- CI/CD -->
+        <div class="explainer-box cicd">
+          <h4><span class="tag cicd">CI/CD</span> Continuous Integration &amp; Deployment</h4>
+          <p>CI runs automated checks on every code change. CD automatically deploys code that passes all checks. Together, they ensure only tested, secure code reaches production.</p>
+          <ul>
+            <li><strong style="color:var(--fg)">CI: pytest</strong> &mdash; runs all backend unit + integration tests</li>
+            <li><strong style="color:var(--fg)">CI: Playwright</strong> &mdash; runs browser-based E2E tests</li>
+            <li><strong style="color:var(--fg)">CI: semgrep</strong> &mdash; scans code for security vulnerabilities</li>
+            <li><strong style="color:var(--fg)">CI: pip-audit</strong> &mdash; checks dependencies for known CVEs</li>
+            <li><strong style="color:var(--fg)">CD: auto-deploy</strong> &mdash; merge to main &rarr; build &rarr; push &rarr; deploy</li>
+          </ul>
+          <div class="code-block" style="margin-top:16px;">
+            <span class="comment"># .github/workflows/ci.yml</span><br/>
+            <span class="keyword">on</span>: [push, pull_request]<br/>
+            <span class="keyword">jobs</span>:<br/>
+            &nbsp;&nbsp;<span class="string">test</span>: pytest --cov<br/>
+            &nbsp;&nbsp;<span class="string">e2e</span>: npx playwright test<br/>
+            &nbsp;&nbsp;<span class="string">security</span>: semgrep scan<br/>
+            &nbsp;&nbsp;<span class="string">audit</span>: pip-audit<br/>
+            &nbsp;&nbsp;<span class="flag">deploy</span>: <span class="comment"># only on main, after all pass</span><br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;docker build &amp;&amp; push &amp;&amp; ecs update
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Pipeline Steps ═══ -->
+  <section class="section" id="pipeline" style="background:rgba(255,255,255,0.01);">
+    <div class="container">
+      <span class="section-label"><span class="dot"></span> Step by Step</span>
+      <h2 class="section-title">The Deployment Pipeline</h2>
+      <p class="section-subtitle">What actually happens when you run <code style="color:var(--primary);font-family:var(--font-mono)">git push origin main</code>.</p>
+
+      <div class="pipeline-flow fade-up">
+        <!-- Step 1 -->
+        <div class="pipeline-stage">
+          <div class="stage-marker">
+            <div class="stage-number green">01</div>
+            <div class="stage-line"></div>
+            <span class="stage-label">Push</span>
+          </div>
+          <div class="stage-content">
+            <h3>Code Lands on GitHub</h3>
+            <p class="desc">You push your code. GitHub receives it and triggers the CI workflow defined in <code style="color:var(--primary);font-family:var(--font-mono)">.github/workflows/ci.yml</code>.</p>
+            <div class="code-block">
+              <span class="cmd">$</span> <span class="flag">git add</span> -A<br/>
+              <span class="cmd">$</span> <span class="flag">git commit</span> <span class="string">-m "feat: add notebook caching"</span><br/>
+              <span class="cmd">$</span> <span class="flag">git push</span> origin main
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="pipeline-stage">
+          <div class="stage-marker">
+            <div class="stage-number green">02</div>
+            <div class="stage-line"></div>
+            <span class="stage-label">Test</span>
+          </div>
+          <div class="stage-content">
+            <h3>Automated Tests Run in Parallel</h3>
+            <p class="desc">Four jobs run simultaneously: backend tests (pytest), E2E browser tests (Playwright), security scanning (semgrep), and dependency auditing (pip-audit). If <strong>any</strong> job fails, the merge is blocked.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+              <div style="background:#0d0d0d;border:1px solid rgba(0,212,106,0.2);border-radius:10px;padding:14px;">
+                <div style="color:var(--primary);font-size:0.8rem;font-weight:600;margin-bottom:4px;">pytest</div>
+                <div style="color:var(--muted);font-size:0.8rem;">~70% unit + ~20% integration tests</div>
+              </div>
+              <div style="background:#0d0d0d;border:1px solid rgba(0,200,230,0.2);border-radius:10px;padding:14px;">
+                <div style="color:var(--secondary);font-size:0.8rem;font-weight:600;margin-bottom:4px;">Playwright</div>
+                <div style="color:var(--muted);font-size:0.8rem;">~10% E2E browser tests</div>
+              </div>
+              <div style="background:#0d0d0d;border:1px solid rgba(248,113,113,0.2);border-radius:10px;padding:14px;">
+                <div style="color:var(--red);font-size:0.8rem;font-weight:600;margin-bottom:4px;">semgrep</div>
+                <div style="color:var(--muted);font-size:0.8rem;">Static code security analysis</div>
+              </div>
+              <div style="background:#0d0d0d;border:1px solid rgba(248,113,113,0.2);border-radius:10px;padding:14px;">
+                <div style="color:var(--red);font-size:0.8rem;font-weight:600;margin-bottom:4px;">pip-audit</div>
+                <div style="color:var(--muted);font-size:0.8rem;">Dependency vulnerability scan</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="pipeline-stage">
+          <div class="stage-marker">
+            <div class="stage-number cyan">03</div>
+            <div class="stage-line"></div>
+            <span class="stage-label">Build</span>
+          </div>
+          <div class="stage-content">
+            <h3>Docker Builds Container Images</h3>
+            <p class="desc">Two Docker images are built: one for the FastAPI backend and one for the React frontend (served by Nginx). Each image is a self-contained, portable unit.</p>
+            <div class="code-block">
+              <span class="comment"># Build both images</span><br/>
+              <span class="cmd">$</span> <span class="flag">docker build</span> <span class="string">-t paper2notebook-backend</span> <span class="flag">-f</span> backend/Dockerfile .<br/>
+              <span class="cmd">$</span> <span class="flag">docker build</span> <span class="string">-t paper2notebook-frontend</span> <span class="flag">-f</span> frontend/Dockerfile .<br/><br/>
+              <span class="comment"># Push to AWS ECR (private registry)</span><br/>
+              <span class="cmd">$</span> <span class="flag">docker push</span> <span class="string">123456789.dkr.ecr.us-east-1.amazonaws.com/backend</span><br/>
+              <span class="cmd">$</span> <span class="flag">docker push</span> <span class="string">123456789.dkr.ecr.us-east-1.amazonaws.com/frontend</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="pipeline-stage">
+          <div class="stage-marker">
+            <div class="stage-number purple">04</div>
+            <div class="stage-line"></div>
+            <span class="stage-label">Provision</span>
+          </div>
+          <div class="stage-content">
+            <h3>Terraform Ensures Infrastructure Exists</h3>
+            <p class="desc">Terraform compares the desired state (your <code style="color:var(--purple);font-family:var(--font-mono)">.tf</code> files) with the actual state (what's currently in AWS). It creates, updates, or destroys only what needs to change.</p>
+            <div class="code-block">
+              <span class="cmd">$</span> <span class="keyword">terraform plan</span> <span class="comment">&nbsp;&nbsp;# preview changes</span><br/>
+              <span class="string">+ aws_ecs_cluster.main &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;will be created</span><br/>
+              <span class="string">+ aws_ecs_service.backend &nbsp;&nbsp;will be created</span><br/>
+              <span class="string">+ aws_ecs_service.frontend &nbsp;will be created</span><br/>
+              <span class="string">+ aws_lb.main &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;will be created</span><br/>
+              <span class="flag">~ aws_ecs_task.backend &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;image tag updated</span><br/><br/>
+              <span class="cmd">$</span> <span class="keyword">terraform apply</span> <span class="comment">&nbsp;# execute changes</span><br/>
+              <span class="string">Apply complete! Resources: 5 added, 1 changed, 0 destroyed.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="pipeline-stage">
+          <div class="stage-marker">
+            <div class="stage-number amber">05</div>
+            <div class="stage-line"></div>
+            <span class="stage-label">Deploy</span>
+          </div>
+          <div class="stage-content">
+            <h3>ECS Fargate Runs Your Containers</h3>
+            <p class="desc">ECS pulls the new images from ECR and starts fresh containers. The ALB (load balancer) routes incoming traffic: <code style="font-family:var(--font-mono);color:var(--amber)">/api/*</code> goes to the backend, everything else goes to the frontend.</p>
+            <div style="background:#0d0d0d;border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:12px;">
+              <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                <div style="text-align:center;">
+                  <div style="font-size:1.8rem;">&#x1F310;</div>
+                  <div style="font-size:0.7rem;color:var(--muted);margin-top:4px;">User</div>
+                </div>
+                <div style="color:var(--muted);font-family:var(--font-mono);font-size:0.8rem;">&rarr;</div>
+                <div style="text-align:center;padding:8px 16px;border:1px solid rgba(0,212,106,0.2);border-radius:8px;">
+                  <div style="font-size:0.8rem;font-weight:600;color:var(--primary);">ALB</div>
+                  <div style="font-size:0.65rem;color:var(--muted);">Load Balancer</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                  <div style="color:var(--muted);font-family:var(--font-mono);font-size:0.7rem;">/api/* &rarr;</div>
+                  <div style="color:var(--muted);font-family:var(--font-mono);font-size:0.7rem;">/* &rarr;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                  <div style="padding:6px 14px;border:1px solid rgba(0,212,106,0.2);border-radius:8px;">
+                    <div style="font-size:0.75rem;font-weight:600;color:var(--primary);">FastAPI :8000</div>
+                  </div>
+                  <div style="padding:6px 14px;border:1px solid rgba(0,200,230,0.2);border-radius:8px;">
+                    <div style="font-size:0.75rem;font-weight:600;color:var(--secondary);">Nginx+React :80</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 6 -->
+        <div class="pipeline-stage">
+          <div class="stage-marker">
+            <div class="stage-number green">06</div>
+            <span class="stage-label">Live!</span>
+          </div>
+          <div class="stage-content">
+            <h3>Application is Live</h3>
+            <p class="desc">Users access Paper2Notebook via the ALB's public URL. CloudWatch collects logs from both containers. If a container crashes, ECS automatically restarts it. Zero downtime.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ AWS Resources ═══ -->
+  <section class="section" id="aws">
+    <div class="container">
+      <span class="section-label"><span class="dot"></span> AWS Resources</span>
+      <h2 class="section-title">What Terraform Creates</h2>
+      <p class="section-subtitle">Every AWS resource provisioned by our Terraform configuration, and what it does.</p>
+
+      <div class="fade-up">
+        <table class="resource-table">
+          <thead>
+            <tr>
+              <th>AWS Service</th>
+              <th>Resource</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>VPC</td>
+              <td>Virtual Private Cloud</td>
+              <td>Isolated network for all resources. Public subnets for the ALB, private subnets for containers.</td>
+            </tr>
+            <tr>
+              <td>ECR</td>
+              <td>Elastic Container Registry</td>
+              <td>Private Docker image registry. Like Docker Hub but within your AWS account.</td>
+            </tr>
+            <tr>
+              <td>ECS</td>
+              <td>Elastic Container Service</td>
+              <td>Container orchestrator. Manages running, scaling, and restarting containers.</td>
+            </tr>
+            <tr>
+              <td>Fargate</td>
+              <td>Serverless Compute</td>
+              <td>The compute layer under ECS. You specify CPU/RAM per container, AWS handles servers.</td>
+            </tr>
+            <tr>
+              <td>ALB</td>
+              <td>Application Load Balancer</td>
+              <td>Routes HTTP traffic. Sends <code>/api/*</code> to backend, <code>/*</code> to frontend. Health checks included.</td>
+            </tr>
+            <tr>
+              <td>CloudWatch</td>
+              <td>Logs &amp; Monitoring</td>
+              <td>Collects stdout/stderr from all containers. Enables debugging and alerting.</td>
+            </tr>
+            <tr>
+              <td>IAM</td>
+              <td>Roles &amp; Policies</td>
+              <td>Grants minimal permissions. ECS role can pull from ECR and write to CloudWatch &mdash; nothing more.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ How It All Flows (Plain English) ═══ -->
+  <section class="section" id="how-it-flows" style="background:rgba(255,255,255,0.01);">
+    <div class="container">
+      <span class="section-label"><span class="dot"></span> Plain English</span>
+      <h2 class="section-title">How Everything Connects</h2>
+      <p class="section-subtitle">The entire workflow, explained like you're telling a friend over coffee.</p>
+
+      <div class="wide-card fade-up">
+        <h3>The Story of a Single Code Change</h3>
+
+        <div class="flow-step">
+          <div class="flow-num">1</div>
+          <p>You write a bug fix on your laptop and run <strong>git push</strong>. Your code + the Dockerfiles + the Terraform configs all live in the same repo.</p>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">2</div>
+          <p><strong>GitHub receives the push</strong> and immediately starts the CI pipeline. Think of it as a robot coworker that reviews every change you make. It runs four checks in parallel: <strong style="color:var(--primary)">pytest</strong> (does the code work?), <strong style="color:var(--secondary)">Playwright</strong> (does the UI work?), <strong style="color:var(--red)">semgrep</strong> (is the code secure?), and <strong style="color:var(--red)">pip-audit</strong> (are the dependencies safe?).</p>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">3</div>
+          <p>If any check fails, <strong style="color:var(--red)">the merge is blocked</strong>. No bad code reaches production. You fix the issue and push again.</p>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">4</div>
+          <p>Once all checks pass, the CD pipeline kicks in. It takes your code and uses the <strong style="color:var(--secondary)">Dockerfiles</strong> to build two container images &mdash; one for FastAPI, one for React+Nginx. Think of these as two sealed boxes, each containing everything needed to run that service.</p>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">5</div>
+          <p>The images are pushed to <strong style="color:var(--amber)">AWS ECR</strong> (Elastic Container Registry) &mdash; your private Docker Hub inside AWS. This is where ECS will pull the images from.</p>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">6</div>
+          <p>If the infrastructure changed (new service, different CPU allocation, etc.), <strong style="color:var(--purple)">Terraform</strong> runs <code style="color:var(--purple);font-family:var(--font-mono)">terraform apply</code>. It reads your <code style="color:var(--purple);font-family:var(--font-mono)">.tf</code> files, compares them with what's currently in AWS, and makes only the necessary changes. If nothing changed, it does nothing.</p>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">7</div>
+          <p><strong style="color:var(--amber)">ECS Fargate</strong> pulls the new images from ECR and starts fresh containers. Fargate is "serverless" &mdash; you never see or manage any servers. You just say "run this container with 512MB RAM and 0.25 vCPU" and AWS figures out where to put it.</p>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">8</div>
+          <p>The <strong style="color:var(--primary)">Application Load Balancer (ALB)</strong> sits in front of both containers. When a user visits your URL, the ALB looks at the path: <code style="font-family:var(--font-mono);color:var(--primary)">/api/*</code> requests go to the FastAPI backend, everything else goes to the React frontend. It also does health checks &mdash; if a container stops responding, the ALB stops sending traffic to it.</p>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">9</div>
+          <p>Meanwhile, <strong style="color:var(--purple)">CloudWatch</strong> collects every log line from both containers. If something breaks at 3 AM, you can see exactly what happened. <strong style="color:var(--red)">IAM roles</strong> ensure each service has minimum permissions &mdash; the containers can pull images and write logs, nothing more.</p>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num" style="background:rgba(0,212,106,0.2);">&#x2713;</div>
+          <p><strong>That's it.</strong> From <code style="color:var(--primary);font-family:var(--font-mono)">git push</code> to live users &mdash; fully automated, tested, secured, and monitored. You wrote code, pushed it, and the pipeline handled the rest. This is what "production-ready" means.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Footer ═══ -->
+  <footer>
+    <div class="container">
+      <div class="brand"><span>Paper2Notebook</span></div>
+      <p>Sprint V3 Infrastructure Schematic &mdash; Production-Ready Pipeline</p>
+      <p style="margin-top:8px;font-size:0.75rem;">Built with care. Deployed with confidence.</p>
+    </div>
+  </footer>
+
+  <!-- ═══ Scroll Animations ═══ -->
+  <script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '-50px' });
+
+    document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+    // Smooth scroll for nav links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
